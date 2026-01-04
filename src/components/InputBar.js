@@ -6,7 +6,10 @@ import { clearReplyTo, addMessage } from '../redux/chatSlice';
 function InputBar() {
   const dispatch = useDispatch();
   const replyToId = useSelector((s) => s.chat.replyToId);
+  const messages = useSelector((s) => s.chat.messages);
   const [value, setValue] = useState('');
+
+  const replyMessage = replyToId ? messages.find((m) => m.id === replyToId) : null;
 
   const onSend = () => {
     if (value.trim().length === 0) return;
@@ -25,9 +28,12 @@ function InputBar() {
 
   return (
     <View style={styles.container}>
-      {replyToId ? (
+      {replyMessage ? (
         <View style={styles.replyPreview}>
-          <Text style={styles.replyText}>Replying to {replyToId}</Text>
+          <Text style={styles.replyLabel}>Replying to</Text>
+          <Text style={styles.replyText} numberOfLines={1} ellipsizeMode="tail">
+            {replyMessage.text}
+          </Text>
           <TouchableOpacity onPress={() => dispatch(clearReplyTo())}>
             <Text style={styles.cancel}>Cancel</Text>
           </TouchableOpacity>
@@ -54,9 +60,10 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
   input: { flex: 1, borderRadius: 20, borderWidth: 1, borderColor: '#ddd', paddingHorizontal: 12, height: 44 },
   sendBtn: { backgroundColor: '#3b82f6', padding: 10, marginLeft: 8, borderRadius: 8 },
-  replyPreview: { backgroundColor: '#fff4e5', padding: 8, borderRadius: 8, marginBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  replyPreview: { backgroundColor: '#fff4e5', padding: 8, borderRadius: 8, marginBottom: 8 },
+  replyLabel: { color: '#8a6234', fontSize: 12, marginBottom: 4 },
   replyText: { color: '#333' },
-  cancel: { color: '#e53935' },
+  cancel: { color: '#e53935', marginTop: 4 },
 });
 
 export default InputBar;
