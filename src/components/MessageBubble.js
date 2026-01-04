@@ -1,69 +1,48 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  interpolate,
-  runOnJS,
-} from 'react-native-reanimated';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import React, { useRef } from 'react';
+import { View, Text, StyleSheet, Animated, PanResponder } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { setReplyTo } from '../redux/chatSlice';
 
 function MessageBubble({ message }) {
   const dispatch = useDispatch();
-  const translateX = useSharedValue(0);
+  const translateX = useRef(new Animated.Value(0)).current;
   const isEvent = message.type === 'event';
 
-  const onReply = (id) => {
-    dispatch(setReplyTo(id));
-  };
-
-  const pan = Gesture.Pan()
-    .onUpdate((e) => {
-      // only allow right swipe
-      if (e.translationX > 0) translateX.value = Math.min(e.translationX, 130);
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dx) > 5,
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dx > 0) translateX.setValue(Math.min(gestureState.dx, 130));
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        const threshold = 80;
+        if (gestureState.dx > threshold) {
+          dispatch(setReplyTo(message.id));
+        }
+        Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
+      },
     })
-    .onEnd(() => {
-      const threshold = 80;
-      if (translateX.value > threshold) {
-        // set reply state on JS thread
-        runOnJS(onReply)(message.id);
-      }
-      translateX.value = withSpring(0, { damping: 12, stiffness: 200 });
-    });
+  ).current;
 
-  const rStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-  }));
-
-  const rIconStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(translateX.value, [0, 30, 80], [0, 0.6, 1]),
-    transform: [{ translateX: interpolate(translateX.value, [0, 130], [-20, 10]) }],
-  }));
-
-  const containerStyle = [styles.container, message.sender === 'user' ? styles.userContainer : styles.otherContainer];
+  const rStyle = { transform: [{ translateX }] };
 
   return (
     <View style={styles.wrapper}>
-      {/* Reply icon shown as user swipes */}
-      <Animated.View style={[styles.replyIcon, rIconStyle]} pointerEvents="none">
+      <Animated.View style={[styles.replyIcon, { opacity: translateX.interpolate({ inputRange: [0, 30, 80], outputRange: [0, 0.6, 1] }), transform: [{ translateX: translateX.interpolate({ inputRange: [0, 130], outputRange: [-20, 10] }) }] }]} pointerEvents="none">
         <Text style={{ fontSize: 18 }}>↩️</Text>
       </Animated.View>
 
-      <GestureDetector gesture={pan}>
-        <Animated.View style={[containerStyle, rStyle]}>
-          {isEvent ? (
-            <Text style={styles.eventText}>{message.text}</Text>
-          ) : (
-            <>
-              <Text style={styles.text}>{message.text}</Text>
-              {message.reaction ? <Text style={styles.reaction}>{message.reaction}</Text> : null}
-            </>
-          )}
-        </Animated.View>
-      </GestureDetector>
+      <Animated.View style={[styles.container, message.sender === 'user' ? styles.userContainer : styles.otherContainer, rStyle]} {...panResponder.panHandlers}>
+        {isEvent ? (
+          <Text style={styles.eventText}>{message.text}</Text>
+        ) : (
+          <>
+            <Text style={styles.text}>{message.text}</Text>
+            {message.reaction ? <Text style={styles.reaction}>{message.reaction}</Text> : null}
+          </>
+        )}
+      </Animated.View>
     </View>
   );
 }
