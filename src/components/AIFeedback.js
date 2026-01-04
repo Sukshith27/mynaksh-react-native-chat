@@ -7,19 +7,36 @@ const CHIPS = ['Inaccurate', 'Too Vague', 'Too Long'];
 
 export default function AIFeedback({ messageId }) {
   const dispatch = useDispatch();
-  const fb = useSelector((s) => s.chat.feedback[messageId]) || { liked: false, dislikeReasons: [] };
-  const [selected, setSelected] = useState(fb.dislikeReasons || []);
-  const [expanded, setExpanded] = useState(!fb.liked && selected.length > 0);
+  // select raw feedback entry (may be undefined)
+  const fb = useSelector((s) => s.chat.feedback[messageId]);
+
+  // local state driven from fb; avoid inline fallback object in selector (that creates a new reference each render)
+  const [selected, setSelected] = useState((fb && fb.dislikeReasons) || []);
+  const [expanded, setExpanded] = useState(!fb?.liked && selected.length > 0);
   const anim = useRef(new Animated.Value(expanded ? 1 : 0)).current;
+  const chipAnimsRef = useRef({});
 
   useEffect(() => {
     Animated.timing(anim, { toValue: expanded ? 1 : 0, duration: 180, useNativeDriver: true }).start();
   }, [expanded, anim]);
 
   useEffect(() => {
-    setSelected(fb.dislikeReasons || []);
-    setExpanded(!fb.liked && (fb.dislikeReasons || []).length > 0);
-  }, [fb]);
+    const reasons = (fb && fb.dislikeReasons) || [];
+    // only update local state if different to avoid update loops
+    const same = reasons.length === selected.length && reasons.every((r, i) => selected[i] === r);
+    if (!same) setSelected(reasons);
+
+    const shouldExpand = !fb?.liked && reasons.length > 0;
+    if (shouldExpand !== expanded) setExpanded(shouldExpand);
+
+    // initialize/animate chip values
+    CHIPS.forEach((c) => {
+      if (!chipAnimsRef.current[c]) chipAnimsRef.current[c] = new Animated.Value(reasons.includes(c) ? 1 : 0);
+      else {
+        Animated.timing(chipAnimsRef.current[c], { toValue: reasons.includes(c) ? 1 : 0, duration: 160, useNativeDriver: true }).start();
+      }
+    });
+  }, [fb, selected, expanded]);
 
   const onLike = () => {
     dispatch(setLikeState({ messageId, liked: true }));
@@ -31,10 +48,19 @@ export default function AIFeedback({ messageId }) {
     setExpanded(true);
   };
 
+  const liked = fb?.liked ?? false;
+
   const toggleChip = (chip) => {
     const next = selected.includes(chip) ? selected.filter((c) => c !== chip) : [...selected, chip];
     setSelected(next);
     dispatch(setDislikeReasons({ messageId, reasons: next }));
+
+    // animate chip
+    const animVal = chipAnimsRef.current[chip] || new Animated.Value(0);
+    chipAnimsRef.current[chip] = animVal;
+    Animated.sequence([
+      Animated.timing(animVal, { toValue: next.includes(chip) ? 1 : 0, duration: 160, useNativeDriver: true }),
+    ]).start();
   };
 
   const rStyle = {
@@ -45,21 +71,25 @@ export default function AIFeedback({ messageId }) {
   return (
     <View style={styles.container}>
       <View style={styles.row}>
-        <TouchableOpacity style={[styles.btn, fb.liked ? styles.btnActive : null]} onPress={onLike}>
-          <Text style={fb.liked ? styles.btnTextActive : styles.btnText}>Like</Text>
+        <TouchableOpacity style={[styles.btn, liked ? styles.btnActive : null]} onPress={onLike}>
+          <Text style={liked ? styles.btnTextActive : styles.btnText}>Like</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.btn, !fb.liked ? styles.btnActiveDanger : null]} onPress={onDislike}>
-          <Text style={!fb.liked ? styles.btnTextActiveDanger : styles.btnText}>Dislike</Text>
+        <TouchableOpacity style={[styles.btn, !liked ? styles.btnActiveDanger : null]} onPress={onDislike}>
+          <Text style={!liked ? styles.btnTextActiveDanger : styles.btnText}>Dislike</Text>
         </TouchableOpacity>
       </View>
 
       <Animated.View style={[styles.chips, rStyle]} pointerEvents={expanded ? 'auto' : 'none'}>
         {CHIPS.map((c) => {
           const active = selected.includes(c);
+          const animVal = chipAnimsRef.current[c] || new Animated.Value(0);
+          const scale = animVal.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] });
           return (
-            <TouchableOpacity key={c} style={[styles.chip, active ? styles.chipActive : null]} onPress={() => toggleChip(c)}>
-              <Text style={[styles.chipText, active ? styles.chipTextActive : null]}>{c}</Text>
-            </TouchableOpacity>
+            <Animated.View key={c} style={{ transform: [{ scale }], marginRight: 8 }}>
+              <TouchableOpacity style={[styles.chip, active ? styles.chipActive : null]} onPress={() => toggleChip(c)}>
+                <Text style={[styles.chipText, active ? styles.chipTextActive : null]}>{c}</Text>
+              </TouchableOpacity>
+            </Animated.View>
           );
         })}
       </Animated.View>

@@ -5,10 +5,13 @@ import { endSession, setRating } from '../redux/chatSlice';
 
 export default function RatingModal() {
   const dispatch = useDispatch();
-  const visible = useSelector((s) => s.chat.sessionEnded);
+  const sessionEnded = useSelector((s) => s.chat.sessionEnded);
+  const ratingSubmitted = useSelector((s) => s.chat.ratingSubmitted);
   const existing = useSelector((s) => s.chat.rating);
   const [rating, setLocalRating] = useState(existing || 0);
   const anim = useRef(new Animated.Value(0)).current;
+
+  const visible = sessionEnded && !ratingSubmitted;
 
   useEffect(() => {
     Animated.timing(anim, { toValue: visible ? 1 : 0, duration: 200, useNativeDriver: true }).start();
@@ -16,18 +19,29 @@ export default function RatingModal() {
 
   const submit = () => {
     dispatch(setRating(rating));
+    // show alert and auto-close modal
     Alert.alert('Thanks', `Rating captured: ${rating} stars`);
   };
 
   const close = () => {
-    // Just collapse visually; keep sessionEnded true to indicate session finished
-    Animated.timing(anim, { toValue: 0, duration: 180, useNativeDriver: true }).start();
+    // allow manual dismiss (keeps sessionEnded true, but marking submitted keeps modal closed)
+    dispatch(setRating(rating || 0));
   };
 
   return (
     <Modal visible={visible} transparent animationType="none">
-      <Animated.View style={[styles.backdrop, { opacity: anim }]} />
+      {/* frosted backdrop: darker overlay + subtle white overlay to mimic a blur-like feel */}
+      <Animated.View style={[styles.backdrop, { opacity: anim }]} pointerEvents="none" />
       <Animated.View
+        style={[
+          styles.frost,
+          { opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.85] }) },
+        ]}
+        pointerEvents="none"
+      />
+
+      <Animated.View
+        pointerEvents="auto"
         style={[
           styles.container,
           { transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.98, 1] }) }], opacity: anim },
@@ -82,4 +96,9 @@ const styles = StyleSheet.create({
   submitText: { color: '#fff', fontWeight: '600' },
   cancelBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
   cancelText: { color: '#374151' },
+  frost: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    zIndex: 5,
+  },
 });

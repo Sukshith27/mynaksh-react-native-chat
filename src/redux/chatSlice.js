@@ -106,9 +106,11 @@ const chatSlice = createSlice({
     },
     endSession(state) {
       state.sessionEnded = true;
+      state.ratingSubmitted = false;
     },
     setRating(state, action) {
       state.rating = action.payload; // number 1-5
+      state.ratingSubmitted = true;
     },
   },
 });
@@ -119,9 +121,10 @@ export const {
   addMessage,
   addReaction,
   toggleLike,
+  setLikeState,
   setDislikeReasons,
   endSession,
   setRating,
-} = chatSlice.actions;
+} = chatSlice.actions; 
 
 export default chatSlice.reducer;

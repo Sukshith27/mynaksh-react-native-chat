@@ -89,8 +89,8 @@ function MessageBubble({ message }) {
           )}
         </TouchableOpacity>
 
-        {/* AI feedback UI (like/dislike + chips) shown for AI astrologer messages */}
-        {message.sender === 'ai_astrologer' ? <AIFeedback messageId={message.id} /> : null}
+        {/* AI feedback UI (like/dislike + chips) shown only when AI message explicitly allows feedback */}
+        {message.sender === 'ai_astrologer' && message.hasFeedback ? <AIFeedback messageId={message.id} /> : null}
 
         {/* WhatsApp-like reaction pills partially overlay the message */}
         {message.reaction && message.reaction.length > 0 ? (
