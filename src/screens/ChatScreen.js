@@ -1,18 +1,30 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import MessageBubble from '../components/MessageBubble';
 import InputBar from '../components/InputBar';
+import { endSession } from '../redux/chatSlice';
+import RatingModal from '../components/RatingModal';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 function ChatScreen() {
   const messages = useSelector((s) => s.chat.messages);
+  const sessionEnded = useSelector((s) => s.chat.sessionEnded);
   const dispatch = useDispatch();
+
+  const onEnd = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    dispatch(endSession());
+  };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Astrologer Vikram</Text>
-        <TouchableOpacity style={styles.endBtn} onPress={() => {}}>
+        <TouchableOpacity style={styles.endBtn} onPress={onEnd}>
           <Text style={styles.endBtnText}>End Chat</Text>
         </TouchableOpacity>
       </View>
@@ -26,6 +38,8 @@ function ChatScreen() {
       />
 
       <InputBar />
+
+      {sessionEnded ? <RatingModal /> : null}
     </View>
   );
 }
