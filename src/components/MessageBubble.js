@@ -4,6 +4,7 @@ import { useDispatch } from 'react-redux';
 import { setReplyTo, addReaction } from '../redux/chatSlice';
 import EmojiBar from './EmojiBar';
 import ReactionPill from './ReactionPill';
+import AIFeedback from './AIFeedback';
 
 function MessageBubble({ message }) {
   const dispatch = useDispatch();
@@ -87,6 +88,9 @@ function MessageBubble({ message }) {
             </>
           )}
         </TouchableOpacity>
+
+        {/* AI feedback UI (like/dislike + chips) shown for AI astrologer messages */}
+        {message.sender === 'ai_astrologer' ? <AIFeedback messageId={message.id} /> : null}
 
         {/* WhatsApp-like reaction pills partially overlay the message */}
         {message.reaction && message.reaction.length > 0 ? (

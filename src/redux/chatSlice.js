@@ -90,6 +90,13 @@ const chatSlice = createSlice({
       if (fb.liked) fb.dislikeReasons = [];
       state.feedback[messageId] = fb;
     },
+    setLikeState(state, action) {
+      const { messageId, liked } = action.payload;
+      const fb = state.feedback[messageId] || { liked: false, dislikeReasons: [] };
+      fb.liked = liked;
+      if (liked) fb.dislikeReasons = [];
+      state.feedback[messageId] = fb;
+    },
     setDislikeReasons(state, action) {
       const { messageId, reasons } = action.payload; // reasons: ["Inaccurate"]
       const fb = state.feedback[messageId] || { liked: false, dislikeReasons: [] };
