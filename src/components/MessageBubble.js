@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated, PanResponder, TouchableOpacity } from 'react-native';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { setReplyTo, addReaction } from '../redux/chatSlice';
 import EmojiBar from './EmojiBar';
 import ReactionPill from './ReactionPill';
@@ -12,6 +12,11 @@ function MessageBubble({ message }) {
   const isEvent = message.type === 'event';
   const [showEmojiBar, setShowEmojiBar] = useState(false);
   const emojiAnim = useRef(new Animated.Value(0)).current;
+
+  const repliedMsg = message.replyTo
+  ? useSelector(s => s.chat.messages.find(m => m.id === message.replyTo))
+  : null;
+
 
   useEffect(() => {
     Animated.timing(emojiAnim, {
@@ -62,6 +67,14 @@ function MessageBubble({ message }) {
 
   return (
     <View style={[styles.wrapper, message.reaction && message.reaction.length > 0 ? styles.wrapperWithReactions : null]}>
+        {repliedMsg ? (
+  <View style={styles.replyPreviewBubble}>
+    <Text style={styles.replyPreviewText} numberOfLines={1}>
+      {repliedMsg.text}
+    </Text>
+  </View>
+) : null}
+
       <Animated.View
         style={[
           styles.replyIcon,
@@ -176,6 +189,17 @@ const styles = StyleSheet.create({
   reactionLeftOverlap: {
     left: 10,
   },
+  replyPreviewBubble: {
+  backgroundColor: '#eee',
+  padding: 6,
+  borderRadius: 6,
+  marginBottom: 6,
+},
+replyPreviewText: {
+  fontSize: 12,
+  color: '#555',
+},
+
   reactionRightOverlap: {
     right: 10,
   },  wrapperWithReactions: {

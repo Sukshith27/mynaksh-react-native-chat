@@ -1,97 +1,97 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+yarn install
+npx react-native start
+npx react-native run-android
+# or
+npx react-native run-ios
 
-# Getting Started
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+🚀 Features Implemented
+1. Interactive Message Actions
 
-## Step 1: Start Metro
+Swipe to Reply
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+Swipe a message to the right to reply.
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+Message springs back after release.
 
-```sh
-# Using npm
-npm start
+“Replying to…” preview appears above the input.
 
-# OR using Yarn
-yarn start
-```
+Sent message shows the replied message context (WhatsApp-style).
 
-## Step 2: Build and run your app
+Emoji Reactions
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+Long-press any message to open an emoji bar.
 
-### Android
+Selecting an emoji attaches it below the message.
 
-```sh
-# Using npm
-npm run android
+Reactions are grouped and shown as compact pills.
 
-# OR using Yarn
-yarn android
-```
+2. AI Feedback & Session Flow
 
-### iOS
+AI Like / Dislike Feedback
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+Available only for AI astrologer messages.
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+Like / Dislike toggle.
 
-```sh
-bundle install
-```
+On Dislike, feedback chips expand:
 
-Then, and every time you update your native dependencies, run:
+Inaccurate
 
-```sh
-bundle exec pod install
-```
+Too Vague
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+Too Long
 
-```sh
-# Using npm
-npm run ios
+Selected reasons are stored locally with smooth animations.
 
-# OR using Yarn
-yarn ios
-```
+End Chat & Rating
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+“End Chat” button in the header.
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+Full-screen animated overlay appears.
 
-## Step 3: Modify your app
+5-star rating component.
 
-Now that you have successfully run the app, let's make changes!
+Confirmation alert after submission.
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+🧠 Technical Decisions
+Animations
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+Used Animated for:
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+Swipe-to-reply motion
 
-## Congratulations! :tada:
+Emoji bar transitions
 
-You've successfully run and modified your React Native App. :partying_face:
+Feedback chip animations
 
-### Now what?
+Rating modal transitions
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+Animations are kept lightweight and focused on UX clarity.
 
-# Troubleshooting
+Gesture Handling
 
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+Used PanResponder for swipe gestures.
 
-# Learn More
+Threshold-based swipe detection for reply action.
 
-To learn more about React Native, take a look at the following resources:
+Long-press handled via TouchableOpacity.
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+Gesture logic was implemented first for correctness and UX validation.
+The structure allows easy migration to Reanimated + Gesture Handler if required.
+
+State Management
+
+Redux Toolkit used for predictable state updates.
+
+Centralized handling for:
+
+Messages
+
+Reply state
+
+Emoji reactions
+
+AI feedback
+
+Session end & rating
