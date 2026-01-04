@@ -104,6 +104,11 @@ const chatSlice = createSlice({
       fb.dislikeReasons = reasons;
       state.feedback[messageId] = fb;
     },
+    // remove feedback entry (toggle back to neutral)
+    clearFeedback(state, action) {
+      const messageId = action.payload;
+      if (state.feedback[messageId]) delete state.feedback[messageId];
+    },
     endSession(state) {
       state.sessionEnded = true;
       state.ratingSubmitted = false;
@@ -123,6 +128,7 @@ export const {
   toggleLike,
   setLikeState,
   setDislikeReasons,
+  clearFeedback,
   endSession,
   setRating,
 } = chatSlice.actions; 

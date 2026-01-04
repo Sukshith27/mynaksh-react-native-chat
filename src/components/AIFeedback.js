@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
-import { setLikeState, setDislikeReasons } from '../redux/chatSlice';
+import { setLikeState, setDislikeReasons, clearFeedback } from '../redux/chatSlice';
 
 const CHIPS = ['Inaccurate', 'Too Vague', 'Too Long'];
 
@@ -16,6 +16,15 @@ export default function AIFeedback({ messageId }) {
   const anim = useRef(new Animated.Value(expanded ? 1 : 0)).current;
   const chipAnimsRef = useRef({});
 
+  // transient saved indicator: show only after user stops interacting (debounced)
+  const [saved, setSaved] = useState(false);
+  const idleTimerRef = useRef(null); // waits for inactivity before showing saved
+  const hideTimerRef = useRef(null); // hides the saved hint after visible timeout
+
+  // micro animations for like/dislike
+  const likeAnim = useRef(new Animated.Value(1)).current;
+  const dislikeAnim = useRef(new Animated.Value(1)).current;
+
   useEffect(() => {
     Animated.timing(anim, { toValue: expanded ? 1 : 0, duration: 180, useNativeDriver: true }).start();
   }, [expanded, anim]);
@@ -26,8 +35,13 @@ export default function AIFeedback({ messageId }) {
     const same = reasons.length === selected.length && reasons.every((r, i) => selected[i] === r);
     if (!same) setSelected(reasons);
 
-    const shouldExpand = !fb?.liked && reasons.length > 0;
-    if (shouldExpand !== expanded) setExpanded(shouldExpand);
+    // If the feedback was just set to liked, auto-close the chips.
+    if (fb?.liked) {
+      if (expanded) setExpanded(false);
+    } else {
+      // If there are explicit reasons, ensure the chips are open; otherwise preserve manual expansion state
+      if (reasons.length > 0 && !expanded) setExpanded(true);
+    }
 
     // initialize/animate chip values
     CHIPS.forEach((c) => {
@@ -36,16 +50,67 @@ export default function AIFeedback({ messageId }) {
         Animated.timing(chipAnimsRef.current[c], { toValue: reasons.includes(c) ? 1 : 0, duration: 160, useNativeDriver: true }).start();
       }
     });
+
+    // clear timers on unmount or when fb/selected/expanded changes
+    return () => {
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+        idleTimerRef.current = null;
+      }
+      if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = null;
+      }
+    };
   }, [fb, selected, expanded]);
 
+  const scheduleSavedHint = () => {
+    // debounce: wait 500ms after last interaction before showing 'Saved'
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+
+    idleTimerRef.current = setTimeout(() => {
+      setSaved(true);
+      // hide after 900ms
+      hideTimerRef.current = setTimeout(() => setSaved(false), 900);
+      idleTimerRef.current = null;
+    }, 500);
+  };
+
+  const bounce = (animRef) => {
+    Animated.sequence([
+      Animated.timing(animRef, { toValue: 1.06, duration: 110, useNativeDriver: true }),
+      Animated.timing(animRef, { toValue: 1, duration: 110, useNativeDriver: true }),
+    ]).start();
+  };
+
   const onLike = () => {
-    dispatch(setLikeState({ messageId, liked: true }));
-    setExpanded(false);
+    if (fb?.liked === true) {
+      // toggle back to neutral
+      dispatch(clearFeedback(messageId));
+      setExpanded(false);
+    } else {
+      dispatch(setLikeState({ messageId, liked: true }));
+      setExpanded(false);
+    }
+    bounce(likeAnim);
+    scheduleSavedHint();
   };
 
   const onDislike = () => {
-    dispatch(setLikeState({ messageId, liked: false }));
-    setExpanded(true);
+    if (fb?.liked === false) {
+      // already disliked: toggle back to neutral and collapse
+      dispatch(clearFeedback(messageId));
+      setExpanded(false);
+    } else {
+      dispatch(setLikeState({ messageId, liked: false }));
+      setExpanded(true);
+    }
+    bounce(dislikeAnim);
+    scheduleSavedHint();
   };
 
   const liked = fb?.liked ?? false;
@@ -54,6 +119,9 @@ export default function AIFeedback({ messageId }) {
     const next = selected.includes(chip) ? selected.filter((c) => c !== chip) : [...selected, chip];
     setSelected(next);
     dispatch(setDislikeReasons({ messageId, reasons: next }));
+
+    // schedule debounce-based saved hint
+    scheduleSavedHint();
 
     // animate chip
     const animVal = chipAnimsRef.current[chip] || new Animated.Value(0);
@@ -71,12 +139,19 @@ export default function AIFeedback({ messageId }) {
   return (
     <View style={styles.container}>
       <View style={styles.row}>
-        <TouchableOpacity style={[styles.btn, liked ? styles.btnActive : null]} onPress={onLike}>
-          <Text style={liked ? styles.btnTextActive : styles.btnText}>Like</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.btn, !liked ? styles.btnActiveDanger : null]} onPress={onDislike}>
-          <Text style={!liked ? styles.btnTextActiveDanger : styles.btnText}>Dislike</Text>
-        </TouchableOpacity>
+        <Animated.View style={{ transform: [{ scale: likeAnim }] }}>
+          <TouchableOpacity activeOpacity={0.9} style={[styles.btn, liked ? styles.btnActive : null]} onPress={onLike}>
+            <Text style={liked ? styles.btnTextActive : styles.btnText}>Like</Text>
+          </TouchableOpacity>
+        </Animated.View>
+
+        <Animated.View style={{ transform: [{ scale: dislikeAnim }], marginLeft: 8 }}>
+          <TouchableOpacity activeOpacity={0.9} style={[styles.btn, !liked ? styles.btnActiveDanger : null]} onPress={onDislike}>
+            <Text style={!liked ? styles.btnTextActiveDanger : styles.btnText}>Dislike</Text>
+          </TouchableOpacity>
+        </Animated.View>
+
+        {saved ? <Text style={styles.saved}>Saved</Text> : null}
       </View>
 
       <Animated.View style={[styles.chips, rStyle]} pointerEvents={expanded ? 'auto' : 'none'}>
@@ -85,8 +160,8 @@ export default function AIFeedback({ messageId }) {
           const animVal = chipAnimsRef.current[c] || new Animated.Value(0);
           const scale = animVal.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] });
           return (
-            <Animated.View key={c} style={{ transform: [{ scale }], marginRight: 8 }}>
-              <TouchableOpacity style={[styles.chip, active ? styles.chipActive : null]} onPress={() => toggleChip(c)}>
+            <Animated.View key={c} style={{ transform: [{ scale }], marginRight: 6 }}>
+              <TouchableOpacity activeOpacity={0.85} style={[styles.chip, active ? styles.chipActive : null]} onPress={() => toggleChip(c)}>
                 <Text style={[styles.chipText, active ? styles.chipTextActive : null]}>{c}</Text>
               </TouchableOpacity>
             </Animated.View>
@@ -114,13 +189,17 @@ const styles = StyleSheet.create({
   chips: { marginTop: 8, flexDirection: 'row', gap: 8 },
   chip: {
     backgroundColor: '#fff',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: '#f3f3f3',
+    minWidth: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  chipActive: { backgroundColor: '#FEE2E2', borderColor: '#fbcaca' },
-  chipText: { color: '#333' },
-  chipTextActive: { color: '#7F1D1D', fontWeight: '600' },
+  chipActive: { backgroundColor: '#FEE2E2', borderColor: '#fca5a5' },
+  chipText: { color: '#333', fontSize: 14 },
+  chipTextActive: { color: '#7F1D1D', fontWeight: '700' },
+  saved: { marginLeft: 12, color: '#065F46', fontWeight: '600' },
 });
