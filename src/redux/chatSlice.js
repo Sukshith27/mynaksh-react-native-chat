@@ -75,6 +75,12 @@ const chatSlice = createSlice({
       const { messageId, emoji } = action.payload;
       if (!state.reactions[messageId]) state.reactions[messageId] = [];
       state.reactions[messageId].push(emoji);
+      // also attach to message object for simple rendering
+      const msg = state.messages.find((m) => m.id === messageId);
+      if (msg) {
+        if (!msg.reaction) msg.reaction = [];
+        msg.reaction.push(emoji);
+      }
     },
     toggleLike(state, action) {
       const { messageId } = action.payload;

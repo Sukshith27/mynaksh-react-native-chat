@@ -1,12 +1,14 @@
-import React, { useRef } from 'react';
-import { View, Text, StyleSheet, Animated, PanResponder } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { View, Text, StyleSheet, Animated, PanResponder, TouchableOpacity } from 'react-native';
 import { useDispatch } from 'react-redux';
-import { setReplyTo } from '../redux/chatSlice';
+import { setReplyTo, addReaction } from '../redux/chatSlice';
+import EmojiBar from './EmojiBar';
 
 function MessageBubble({ message }) {
   const dispatch = useDispatch();
   const translateX = useRef(new Animated.Value(0)).current;
   const isEvent = message.type === 'event';
+  const [showEmojiBar, setShowEmojiBar] = useState(false);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -22,8 +24,20 @@ function MessageBubble({ message }) {
         }
         Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
       },
+      onPanResponderTerminationRequest: () => true,
+      onStartShouldSetResponderCapture: () => false,
     })
   ).current;
+
+  const onLongPress = () => {
+    // show emoji bar anchored at this message
+    setShowEmojiBar(true);
+  };
+
+  const onSelectEmoji = (emoji) => {
+    dispatch(addReaction({ messageId: message.id, emoji }));
+    setShowEmojiBar(false);
+  };
 
   const rStyle = { transform: [{ translateX }] };
 
@@ -33,15 +47,26 @@ function MessageBubble({ message }) {
         <Text style={{ fontSize: 18 }}>↩️</Text>
       </Animated.View>
 
-      <Animated.View style={[styles.container, message.sender === 'user' ? styles.userContainer : styles.otherContainer, rStyle]} {...panResponder.panHandlers}>
-        {isEvent ? (
-          <Text style={styles.eventText}>{message.text}</Text>
-        ) : (
-          <>
-            <Text style={styles.text}>{message.text}</Text>
-            {message.reaction ? <Text style={styles.reaction}>{message.reaction}</Text> : null}
-          </>
-        )}
+      <Animated.View
+        style={[styles.container, message.sender === 'user' ? styles.userContainer : styles.otherContainer, rStyle]}
+        {...panResponder.panHandlers}
+      >
+        <TouchableOpacity activeOpacity={0.9} onLongPress={onLongPress}>
+          {isEvent ? (
+            <Text style={styles.eventText}>{message.text}</Text>
+          ) : (
+            <>
+              <Text style={styles.text}>{message.text}</Text>
+              {message.reaction ? <Text style={styles.reaction}>{message.reaction.join ? message.reaction.join(' ') : message.reaction}</Text> : null}
+            </>
+          )}
+        </TouchableOpacity>
+
+        {showEmojiBar ? (
+          <View style={styles.emojiBarWrapper} pointerEvents="box-none">
+            <EmojiBar onSelect={onSelectEmoji} />
+          </View>
+        ) : null}
       </Animated.View>
     </View>
   );
