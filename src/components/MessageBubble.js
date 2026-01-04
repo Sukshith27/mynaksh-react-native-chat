@@ -1,14 +1,24 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated, PanResponder, TouchableOpacity } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { setReplyTo, addReaction } from '../redux/chatSlice';
 import EmojiBar from './EmojiBar';
+import ReactionPill from './ReactionPill';
 
 function MessageBubble({ message }) {
   const dispatch = useDispatch();
   const translateX = useRef(new Animated.Value(0)).current;
   const isEvent = message.type === 'event';
   const [showEmojiBar, setShowEmojiBar] = useState(false);
+  const emojiAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(emojiAnim, {
+      toValue: showEmojiBar ? 1 : 0,
+      duration: 160,
+      useNativeDriver: true,
+    }).start();
+  }, [showEmojiBar, emojiAnim]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -41,9 +51,26 @@ function MessageBubble({ message }) {
 
   const rStyle = { transform: [{ translateX }] };
 
+  const rEmojiStyle = {
+    opacity: emojiAnim,
+    transform: [
+      { translateY: emojiAnim.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) },
+      { scale: emojiAnim.interpolate({ inputRange: [0, 1], outputRange: [0.98, 1] }) },
+    ],
+  };
+
   return (
     <View style={styles.wrapper}>
-      <Animated.View style={[styles.replyIcon, { opacity: translateX.interpolate({ inputRange: [0, 30, 80], outputRange: [0, 0.6, 1] }), transform: [{ translateX: translateX.interpolate({ inputRange: [0, 130], outputRange: [-20, 10] }) }] }]} pointerEvents="none">
+      <Animated.View
+        style={[
+          styles.replyIcon,
+          {
+            opacity: translateX.interpolate({ inputRange: [0, 30, 80], outputRange: [0, 0.6, 1] }),
+            transform: [{ translateX: translateX.interpolate({ inputRange: [0, 130], outputRange: [-20, 10] }) }],
+          },
+        ]}
+        pointerEvents="none"
+      >
         <Text style={{ fontSize: 18 }}>↩️</Text>
       </Animated.View>
 
@@ -57,16 +84,36 @@ function MessageBubble({ message }) {
           ) : (
             <>
               <Text style={styles.text}>{message.text}</Text>
-              {message.reaction ? <Text style={styles.reaction}>{message.reaction.join ? message.reaction.join(' ') : message.reaction}</Text> : null}
             </>
           )}
         </TouchableOpacity>
 
-        {showEmojiBar ? (
-          <View style={styles.emojiBarWrapper} pointerEvents="box-none">
-            <EmojiBar onSelect={onSelectEmoji} />
-          </View>
-        ) : null}
+        {/* WhatsApp-like reaction pills partially overlay the message */}
+        {message.reaction && message.reaction.length > 0 ? (
+  <Animated.View
+    style={[
+      styles.reactionOverlap,
+      message.sender === 'user'
+        ? styles.reactionRightOverlap
+        : styles.reactionLeftOverlap,
+    ]}
+    pointerEvents="none"
+  >
+    <ReactionPill emojis={message.reaction} compact />
+  </Animated.View>
+) : null}
+
+<Animated.View
+  pointerEvents={showEmojiBar ? 'auto' : 'none'}
+  style={[
+    styles.emojiBarWrapper,
+    rEmojiStyle,
+    message.sender === 'user' ? styles.emojiRight : styles.emojiLeft,
+  ]}
+>
+  <EmojiBar onSelect={onSelectEmoji} />
+</Animated.View>
+
       </Animated.View>
     </View>
   );
@@ -109,6 +156,25 @@ const styles = StyleSheet.create({
   },
   text: { color: '#111' },
   reaction: { marginTop: 6 },
+  emojiBarWrapper: {
+    position: 'absolute',
+    bottom: '100%',
+    marginBottom: 8,
+    zIndex: 10,
+  },
+  emojiLeft: { left: 0 },
+  emojiRight: { right: 0 },
+  reactionOverlap: {
+    position: 'absolute',
+    bottom: -10,
+    zIndex: 20,
+  },
+  reactionLeftOverlap: {
+    left: 10,
+  },
+  reactionRightOverlap: {
+    right: 10,
+  },
 });
 
 export default MessageBubble;
