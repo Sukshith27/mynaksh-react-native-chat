@@ -60,7 +60,7 @@ function MessageBubble({ message }) {
   };
 
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, message.reaction && message.reaction.length > 0 ? styles.wrapperWithReactions : null]}>
       <Animated.View
         style={[
           styles.replyIcon,
@@ -174,7 +174,8 @@ const styles = StyleSheet.create({
   },
   reactionRightOverlap: {
     right: 10,
-  },
-});
+  },  wrapperWithReactions: {
+    marginBottom: 28,
+  },});
 
 export default MessageBubble;
